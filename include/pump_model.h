@@ -18,7 +18,7 @@ public:
     double T_pump = 0.0;            // 负载扭矩（始终为正，抵抗旋转）
     double J_pump = 0;              // 泵转动惯量
     double b_pump = 0;              // 泵摩擦系数
-    double omega_floor = 1e-6;      // 零速保护 rad/s
+    double omega_floor = 50;      // 零速保护 rad/s
 
     // 根据轴速更新负载扭矩
     void update_from_hydraulics(double omega_shaft);

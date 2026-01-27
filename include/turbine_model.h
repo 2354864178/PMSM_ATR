@@ -14,7 +14,7 @@ public:
     double gas_R = 287.0;           // 比气体常数 J/(kg·K)
     double eta_turb = 0.9;          // 涡轮等熵效率（0-1）
     double omega_t = 0.0;           // 涡轮角速度 rad/s
-    double omega_floor = 0.00001;   // 防止零速除法的下限
+    double omega_floor = 50;        // 防止零速除法的下限
     double b_turb = 1e-04;          // 涡轮摩擦系数（N·m·s），用于轴系集中计算（默认估计）
     double J_turb = 0.01;           // 涡轮转动惯量 kg·m²（默认估计）
 
