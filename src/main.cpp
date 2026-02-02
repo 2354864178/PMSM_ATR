@@ -18,25 +18,29 @@ int main(int argc, char* argv[]) {
     PumpModel pump(custom_Ts);
     ShaftModel shaft(custom_Ts);
 
+    // 电机参数
     motor.Rs = 0.0051;                  // 设置电机定子电阻
     motor.Ld = 0.0000346;               // 设置电机 d 轴电感
     motor.Lq = 0.0000346;               // 设置电机 q 轴电感
     motor.psi_f = 0.026;                // 设置永磁体磁链
     motor.p = 2;                        // 设置极对数
 
+    // 涡轮参数
     turb.gamma = 1.4;                   // 设置比热比
     turb.gas_R = 287.0;                 // 设置比气体常数
     turb.eta_turb = 0.9;                // 设置涡轮等熵效率
 
+    // 泵参数
     pump.rho = 1;                       // 设置流体密度
     pump.Q = 0;                         // 设置流体流量
     pump.eta_p = 1;                     // 设置泵效率
 
+    // 轴系参数
     shaft.b_motor = 0.0009;             // 设置轴系电机侧摩擦系数
     shaft.b_turb = 0;                   // 设置轴系涡轮侧摩擦系数
     shaft.b_pump = 0;                   // 设置轴系泵侧摩擦系数
     shaft.J_motor = 0.000772;           // 设置轴系电机侧转动惯量
-    shaft.J_turb = 0.0000;              // 设置轴系涡轮侧转动惯量
+    shaft.J_turb = 0.1000;              // 设置轴系涡轮侧转动惯量
     shaft.J_pump = 0.0000;              // 设置轴系泵侧转动惯量
 
     // 同时写文件并在 stdout 回显每行，便于运行时检查
@@ -45,7 +49,7 @@ int main(int argc, char* argv[]) {
     ofs << std::fixed << std::setprecision(6);
     std::cout << std::fixed << std::setprecision(6);
 
-    const double time = 0.6;            // 总模拟时间 s
+    const double time = 10;            // 总模拟时间 s
     const int steps = static_cast<int>(time / custom_Ts);        // 总步数
     for (int k = 0; k < steps; ++k) {
         double t = k * custom_Ts;
@@ -57,7 +61,7 @@ int main(int argc, char* argv[]) {
         motor.update_electrical(shaft.omega_mech);      // 更新电机电气状态
 
         // 涡轮入口条件
-        turb.p_in = 100011.1;
+        turb.p_in = 100000.0;
         turb.p_out = 100000.0;
         turb.T_in = 600.0;
         turb.m_dot = 1.0;
