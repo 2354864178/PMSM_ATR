@@ -37,12 +37,15 @@ make clean
 - 机械角位置积分：$\theta \leftarrow \theta + \omega\,T_s$（代码未对 $2\pi$ 取模）。
 - 电角度在电机模型中单独计算：$\theta_e = p\,\theta$（随后用于 Clarke/Park 变换）。
 
-## 涡轮气动→扭矩（当前实现）
-- 等熵出口温度：$T_{out,ideal} = T_{in}\,(p_{out}/p_{in})^{(\gamma-1)/\gamma}$。
-- 理想温降：$\Delta T_{ideal} = T_{in} - T_{out,ideal}$。
-- 实际温降：$\Delta T_{actual} = \eta_{turb}\,\Delta T_{ideal}$。
-- 轴功率：$P_{turb} = \dot m\,\dfrac{R}{\gamma-1}\,\Delta T_{actual}$。
-- 轴扭矩：$T_{turb} = \dfrac{P_{turb}}{\max(\omega_{shaft},\,\omega_{floor})}$（摩擦阻尼集中在轴系模型中处理）。
+## 涡轮气动→扭矩（容积动态模型）
+- 新增涡轮前腔体压力状态 $p_{plenum}$，通过质量守恒更新：
+  $$\dot p_{plenum} = \frac{R\,T_{in}}{V_{plenum}}\,(\dot m_{in} - \dot m_{turb})$$
+- 入口流量采用压差驱动近似：$\dot m_{in} = C_{in}\,\dot m\,\sqrt{\max(p_{in}-p_{plenum},0)/p_{in}}$。
+- 腔体到背压的流量采用可压缩喷嘴关系（按临界压比区分壅塞/非壅塞）。
+- 涡轮做功由腔压到背压的等熵膨胀计算：
+  - $T_{out,ideal} = T_{in}\,(p_{out}/p_{plenum})^{(\gamma-1)/\gamma}$
+  - $P_{turb} = \dot m_{turb}\,c_p\,\eta_{turb}\,(T_{in}-T_{out,ideal})$，其中 $c_p=\gamma R/(\gamma-1)$
+- 轴扭矩：$T_{turb} = \dfrac{P_{turb}}{\max(|\omega_{shaft}|,\,\omega_{floor})}$。
 
 
 ## 离心泵（当前实现）

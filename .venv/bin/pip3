@@ -1,4 +1,4 @@
-#!/home/ysy/code/ATR_C++/.venv/bin/python3
+#!/home/ysy/Code/PMSM_ATR/.venv/bin/python
 # -*- coding: utf-8 -*-
 import re
 import sys

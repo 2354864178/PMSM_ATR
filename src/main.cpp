@@ -27,6 +27,10 @@ int main(int argc, char* argv[]) {
     turb.gamma = 1.4;                   // 设置比热比
     turb.gas_R = 287.0;                 // 设置比气体常数
     turb.eta_turb = 0.9;                // 设置涡轮等熵效率
+    turb.V_plenum = 5e-3;               // 涡轮前腔体积
+    turb.A_nozzle = 1.2e-4;             // 涡轮喷嘴等效面积
+    turb.Cd_nozzle = 0.85;              // 喷嘴流量系数
+    turb.C_in = 1.0;                    // 入口流量系数
 
     pump.rho = 1;                       // 设置流体密度
     pump.Q = 0;                         // 设置流体流量
@@ -40,8 +44,8 @@ int main(int argc, char* argv[]) {
     shaft.J_pump = 0.0000;              // 设置轴系泵侧转动惯量
 
     // 同时写文件并在 stdout 回显每行，便于运行时检查
-    std::ofstream ofs("build/log.csv");
-    ofs << "t,ua,ub,uc,omega_mech,theta_mech,theta_e,ia,ib,ic,id,iq,T_em,T_turb,T_pump" << '\n';
+    std::ofstream ofs("build/log.xlsx");
+    ofs << "t,ua,ub,uc,omega_mech,theta_mech,theta_e,ia,ib,ic,id,iq,T_em,T_turb,T_pump,p_plenum,m_dot_in,m_dot_turb" << '\n';
     ofs << std::fixed << std::setprecision(6);
     std::cout << std::fixed << std::setprecision(6);
 
@@ -57,10 +61,10 @@ int main(int argc, char* argv[]) {
         motor.update_electrical(shaft.omega_mech);      // 更新电机电气状态
 
         // 涡轮入口条件
-        turb.p_in = 100011.1;
+        turb.p_in = 220000.0;
         turb.p_out = 100000.0;
         turb.T_in = 600.0;
-        turb.m_dot = 1.0;
+        turb.m_dot = 0.2;
         turb.update_from_gas(shaft.omega_mech);         // 更新涡轮状态
 
         // 泵流量
@@ -79,7 +83,8 @@ int main(int argc, char* argv[]) {
                  << motor.theta_e << ','
                  << motor.ia << ',' << motor.ib << ',' << motor.ic << ','
                  << motor.id << ',' << motor.iq << ','
-                 << motor.T_em << ',' << turb.T_turb << ',' << pump.T_pump;
+                 << motor.T_em << ',' << turb.T_turb << ',' << pump.T_pump << ','
+                 << turb.p_plenum << ',' << turb.m_dot_in << ',' << turb.m_dot_turb;
             const std::string row = line.str();
             ofs << row << '\n';
             // std::cout << row << '\n';   // 开启终端输出
