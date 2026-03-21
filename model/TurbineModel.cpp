@@ -8,17 +8,16 @@ void TurbineModel::set_Ts(double Ts_in) { Ts = Ts_in; }
 void TurbineModel::update_from_gas(double omega_shaft) {
     omega_t = omega_shaft; // 涡轮直接连接到轴系
 
-    const double gamma_safe = std::max(gamma, 1.01);
-    const double T_gas = std::max(T_in, 200.0);
-    const double p_upstream = std::max(p_in, p_floor);
-    const double p_back = std::max(p_out, p_floor);
+    const double gamma_safe = std::max(gamma, 1.01);    // 防止比热比过小导致数值问题
+    const double T_gas = std::max(T_in, 200.0);         // 防止温度过低导致数值问题
+    const double p_upstream = std::max(p_in, p_floor);  // 背压保护，防止零或负压导致数值问题
+    const double p_back = std::max(p_out, p_floor);  
 
     // 入口质量流：以 m_dot 为标称量，随供压与腔压差变化
-    const double delta_p_in = std::max(p_upstream - p_plenum, 0.0);
-    m_dot_in = C_in * m_dot * std::sqrt(delta_p_in / p_upstream);
+    const double delta_p_in = std::max(p_upstream - p_plenum, 0.0); // 入口压力必须高于腔压才能有流入
+    m_dot_in = C_in * m_dot * std::sqrt(delta_p_in / p_upstream);   // 入口流量系数 C_in 调节实际流量与标称流量 m_dot 的关系
 
     // 腔体 -> 背压：可压缩喷嘴流
-    // 为防止零压或负压导致的数值问题，加入下限保护
     const double p_plenum_safe = std::max(p_plenum, p_floor);
     const double pressure_ratio = std::clamp(p_back / p_plenum_safe, 0.0, 1.0);
     const double critical_ratio = std::pow(2.0 / (gamma_safe + 1.0), gamma_safe / (gamma_safe - 1.0));

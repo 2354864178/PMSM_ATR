@@ -32,9 +32,16 @@ int main(int argc, char* argv[]) {
     turb.Cd_nozzle = 0.85;              // 喷嘴流量系数
     turb.C_in = 1.0;                    // 入口流量系数
 
-    pump.rho = 1;                       // 设置流体密度
-    pump.Q = 0;                         // 设置流体流量
-    pump.eta_p = 1;                     // 设置泵效率
+    pump.rho = 1000;                    // 设置流体密度
+    pump.eta_p = 0.8;                   // 设置泵效率
+    pump.p_suction = 100000.0;          // 吸入压力
+    pump.p_downstream = 120000.0;       // 下游压力
+    pump.p_discharge = 100000.0;        // 出口压力初值
+    pump.V_out = 3e-3;                  // 出口等效容积
+    pump.beta_eff = 1.5e9;              // 有效体积弹性模量
+    pump.R_out = 2e8;                   // 下游等效流阻
+    pump.K_q = 2e-5;                    // 转速-流量系数
+    pump.K_slip = 2e-12;                // 泄漏系数
 
     shaft.b_motor = 0.0009;             // 设置轴系电机侧摩擦系数
     shaft.b_turb = 0;                   // 设置轴系涡轮侧摩擦系数
@@ -45,7 +52,7 @@ int main(int argc, char* argv[]) {
 
     // 同时写文件并在 stdout 回显每行，便于运行时检查
     std::ofstream ofs("build/log.xlsx");
-    ofs << "t,ua,ub,uc,omega_mech,theta_mech,theta_e,ia,ib,ic,id,iq,T_em,T_turb,T_pump,p_plenum,m_dot_in,m_dot_turb" << '\n';
+    ofs << "t,ua,ub,uc,omega_mech,theta_mech,theta_e,ia,ib,ic,id,iq,T_em,T_turb,T_pump,p_plenum,m_dot_in,m_dot_turb,p_discharge,Q_pump,Q_out" << '\n';
     ofs << std::fixed << std::setprecision(6);
     std::cout << std::fixed << std::setprecision(6);
 
@@ -67,8 +74,7 @@ int main(int argc, char* argv[]) {
         turb.m_dot = 0.2;
         turb.update_from_gas(shaft.omega_mech);         // 更新涡轮状态
 
-        // 泵流量
-        pump.Q = 0;
+        // 泵容积动态
         pump.update_from_hydraulics(shaft.omega_mech);  // 更新泵负载（基于轴速与压差）
 
         // 将泵作为负载扭矩传入轴系，不修改轴系文件
@@ -84,7 +90,8 @@ int main(int argc, char* argv[]) {
                  << motor.ia << ',' << motor.ib << ',' << motor.ic << ','
                  << motor.id << ',' << motor.iq << ','
                  << motor.T_em << ',' << turb.T_turb << ',' << pump.T_pump << ','
-                 << turb.p_plenum << ',' << turb.m_dot_in << ',' << turb.m_dot_turb;
+                 << turb.p_plenum << ',' << turb.m_dot_in << ',' << turb.m_dot_turb << ','
+                 << pump.p_discharge << ',' << pump.Q_pump << ',' << pump.Q_out;
             const std::string row = line.str();
             ofs << row << '\n';
             // std::cout << row << '\n';   // 开启终端输出

@@ -48,10 +48,13 @@ make clean
 - 轴扭矩：$T_{turb} = \dfrac{P_{turb}}{\max(|\omega_{shaft}|,\,\omega_{floor})}$。
 
 
-## 离心泵（当前实现）
- 输入：外部给定流量 $Q$、轴速 $\omega$（作为泵速）、流体密度 $\rho$、效率 $\eta_{pump}$、零速保护下限 $\omega_{floor}$。
- 扬程：$H = \rho\,Q\,\omega_{abs}^2$（当前代码使用的简化关系），$\omega_{abs} = \max(|\omega|,\,\omega_{floor})$。
- 压升：$\Delta p = \rho g H$。
- 液压功率：$P_{hyd} = \Delta p\,Q = \rho\,Q\,H\,g$。
- 轴功率：$P_{shaft} = \dfrac{P_{hyd}}{\eta_{pump}}$。
- 负载扭矩：$T_{pump} = \dfrac{P_{shaft}}{\omega_{abs}}$（零速保护防止除零，但尽量保证不要为零）。
+## 离心泵（容积动态实现）
+ 输入：轴速 $\omega$、吸入压力 $p_{suction}$、下游压力 $p_{downstream}$，以及出口等效容积 $V_{out}$、体积弹性模量 $\beta_{eff}$、流阻 $R_{out}$。
+ 泵产生流量（简化）:
+  $$Q_{pump} = \max\left(K_q\,\omega_{abs} - K_{slip}\,\max(p_{discharge}-p_{suction},0),\,0\right)$$
+ 下游流量（流阻模型）:
+  $$Q_{out} = \max\left(\frac{p_{discharge}-p_{downstream}}{R_{out}},\,0\right)$$
+ 出口压力动态（容积模型）:
+  $$\dot p_{discharge} = \frac{\beta_{eff}}{V_{out}}\,(Q_{pump}-Q_{out})$$
+ 压升与扬程：$\Delta p = \max(p_{discharge}-p_{suction},0)$，$H = \Delta p/(\rho g)$。
+ 轴功率与负载扭矩：$P_{shaft}=\Delta p\,Q_{pump}/\eta_{pump}$，$T_{pump}=P_{shaft}/\omega_{abs}$。
