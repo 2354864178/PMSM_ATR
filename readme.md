@@ -5,7 +5,7 @@
 ```bash
 make
 ```
-- 运行示例（生成 build/log.csv）：
+- 运行示例（使用代码内参数）：
 ```bash
 make run
 ```
@@ -15,7 +15,19 @@ make clean
 ```
 构建产物位于 build/，主程序为 build/main。
 
-数据文件为 build/log.csv，绘图文件为 notebooks/plot.ipynb
+当前主程序输出数据文件为 build/log.xlsx，绘图文件为 notebooks/plot.ipynb
+
+## 代码结构（重构后）
+- 部件模型头文件：`include/components/`
+- 求解器头文件：`include/solver/`
+- 部件模型实现：`model/components/`
+- 求解器实现：`model/solver/`
+- 主程序入口：`src/main.cpp`
+
+说明：
+- 各部件（电机/涡轮/泵/轴系）负责各自物理方程（`evaluate_*`）与状态回写（`apply_*`）。
+- 全系统耦合与积分在求解器层统一完成。
+- 参数初始化在 `src/main.cpp` 中统一设置，再通过 `apply_config` 下发到部件。
 
 ## 坐标变换
 - Clarke：$\alpha = \tfrac{2}{3}(a - \tfrac{1}{2}b - \tfrac{1}{2}c)$，$\beta = \tfrac{2}{3}(\tfrac{\sqrt{3}}{2}b - \tfrac{\sqrt{3}}{2}c)$。
@@ -36,6 +48,15 @@ make clean
 - 角加速度：$\dot\omega = \dfrac{T_{em} + T_{turb} - T_{pump} - T_{fric}}{J_{motor} + J_{turb} + J_{pump}}$。
 - 机械角位置积分：$\theta \leftarrow \theta + \omega\,T_s$（代码未对 $2\pi$ 取模）。
 - 电角度在电机模型中单独计算：$\theta_e = p\,\theta$（随后用于 Clarke/Park 变换）。
+
+## 全系统求解器（统一 RK4）
+- 状态向量：$x=[i_d,i_q,\theta_{mech},\omega_{mech},p_{plenum},p_{discharge}]$。
+- 每个子步（$k_1\sim k_4$）都执行同样的部件耦合顺序：
+  - 电机：计算电磁转矩 $T_{em}$ 与电流导数。
+  - 涡轮：计算 $\dot p_{plenum}$ 与涡轮扭矩 $T_{turb}$。
+  - 泵：计算 $\dot p_{discharge}$ 与负载扭矩 $T_{pump}$。
+  - 轴系：用 $T_{em},T_{turb},T_{pump}$ 计算 $\dot\theta_{mech},\dot\omega_{mech}$。
+- RK4 数值工具函数位于 `model/solver/RK4Utils.cpp`。
 
 ## 涡轮气动→扭矩（容积动态模型）
 - 新增涡轮前腔体压力状态 $p_{plenum}$，通过质量守恒更新：

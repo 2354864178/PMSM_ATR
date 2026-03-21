@@ -1,10 +1,21 @@
 #pragma once
 #include <algorithm>
 #include <cmath>
+#include "config/sim_config.h"
 
-// 简化涡轮气动至轴扭矩映射
+// 涡轮模型：
+// - 状态主变量：p_plenum（前腔压力）
+// - 代数量：m_dot_in、m_dot_turb、T_turb
 class TurbineModel {
 public:
+    // 单次气动评估输出。
+    struct GasEval {
+        double dp_plenum = 0.0;
+        double m_dot_in = 0.0;
+        double m_dot_turb = 0.0;
+        double T_turb = 0.0;
+    };
+
     TurbineModel() = default;
     explicit TurbineModel(double Ts_in);
     void set_Ts(double Ts_in);
@@ -37,7 +48,12 @@ public:
 
     double T_turb = 0.0;            // 轴扭矩 N·m
 
-    void update_from_gas(double omega_shaft);
+    // 纯计算：输入候选状态，输出导数与扭矩。
+    GasEval evaluate_gas(double p_plenum_in, double omega_shaft) const;
+    // 回写计算结果，供系统其他层读取。
+    void apply_gas_state(double omega_shaft, double p_plenum_in, const GasEval& eval);
+    // 参数下发。
+    void apply_config(const SimulationConfig::Turbine& cfg);
 
 private:
     double Ts = 0.0001; // 采样时间 s

@@ -1,10 +1,23 @@
 #pragma once
 #include <algorithm>
 #include <cmath>
+#include "config/sim_config.h"
 
-// 简化离心泵液动到轴负载扭矩映射
+// 简化离心泵模型：
+// - 状态主变量：p_discharge（出口压力）
+// - 代数量：Q_pump、Q_out、dp_pump、T_pump
 class PumpModel {
 public:
+    // 单次液动评估输出。
+    struct HydraulicEval {
+        double dp_discharge = 0.0;
+        double Q_pump = 0.0;
+        double Q_out = 0.0;
+        double dp_pump = 0.0;
+        double H = 0.0;
+        double T_pump = 0.0;
+    };
+
     PumpModel() = default;
     explicit PumpModel(double Ts_in);
     void set_Ts(double Ts_in);
@@ -18,7 +31,7 @@ public:
     double T_pump = 0.0;            // 负载扭矩（始终为正，抵抗旋转）
     double J_pump = 0;              // 泵转动惯量
     double b_pump = 0;              // 泵摩擦系数
-    double omega_floor = 50;      // 零速保护 rad/s
+    double omega_floor = 50;        // 零速保护 rad/s
 
     // 容积动态参数（泵出口腔体/管路等效）
     double p_suction = 100000.0;    // 吸入口压力 Pa
@@ -36,8 +49,12 @@ public:
     double Q_out = 0.0;             // 流向下游流量 m^3/s
     double dp_pump = 0.0;           // 泵压升 Pa
 
-    // 根据轴速更新负载扭矩
-    void update_from_hydraulics(double omega_shaft);
+    // 纯计算：输入候选状态与轴速，输出导数/流量/扭矩。
+    HydraulicEval evaluate_hydraulics(double p_discharge_in, double omega_shaft) const;
+    // 回写评估结果，供日志与外部读取。
+    void apply_hydraulic_state(double omega_shaft, double p_discharge_in, const HydraulicEval& eval);
+    // 参数下发。
+    void apply_config(const SimulationConfig::Pump& cfg);
 
 private:
     double Ts = 0.0001;             // 采样时间 s

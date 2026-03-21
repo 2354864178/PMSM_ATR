@@ -1,8 +1,17 @@
 #pragma once
+#include "config/sim_config.h"
 
-// 轴系模型声明
+// 轴系模型（刚性同轴简化）：
+// - 状态主变量：theta_mech、omega_mech
+// - 输入：电机/涡轮/泵三路扭矩
 class ShaftModel {
 public:
+    // 单次机械评估输出。
+    struct MechanicalEval {
+        double dtheta_mech = 0.0;
+        double domega_mech = 0.0;
+    };
+
     ShaftModel() = default;
     explicit ShaftModel(double Ts_in);
     void set_Ts(double Ts_in);
@@ -18,7 +27,12 @@ public:
     double omega_mech = 0.0;    // 机械角速度 rad/s
     double theta_mech = 0.0;    // 机械角位置 rad
 
-    void update_mechanics(double T_em, double T_turb, double T_pump);
+    // 纯计算：给定当前速度与三路扭矩，返回机械导数。
+    MechanicalEval evaluate_mechanics(double omega_mech_in, double T_em, double T_turb, double T_pump) const;
+    // 回写机械状态。
+    void apply_mechanical_state(double theta_mech_in, double omega_mech_in);
+    // 参数下发。
+    void apply_config(const SimulationConfig::Shaft& cfg);
 
 private:
     double Ts = 0.0001;
