@@ -36,16 +36,16 @@ struct SimulationConfig {
 
     // 泵参数：流量-压升关系与出口容积动态参数。
     struct Pump {
-        double rho = 1000.0;
-        double eta_p = 0.8;
-        double p_suction = 100000.0;
-        double p_downstream = 120000.0;
-        double p_discharge = 100000.0;
-        double V_out = 3e-3;
-        double beta_eff = 1.5e9;
-        double R_out = 2e8;
-        double K_q = 2e-5;
-        double K_slip = 2e-12;
+        double rho = 1000.0;                // 流体密度 kg/m^3
+        double eta_p = 0.8;                 // 泵效率（0-1），用于计算实际压升和轴功率
+        double p_suction = 100000.0;        // 吸入口压力 Pa
+        double p_downstream = 100000.0;     // 出口压力 Pa（当前版本为定值，后续可扩展为动态变量）
+        double p_discharge = 100000.0;      // 泵出口压力 Pa（当前版本为定值，后续可扩展为动态变量）
+        double V_out = 3e-3;                // 出口容积 m^3，影响出口压力动态响应，当前版本为定值，后续可扩展为动态变量
+        double beta_eff = 1.5e9;            // 压升-流量关系二次项系数，影响泵的非线性特性，当前版本为定值，后续可扩展为动态变量
+        double R_out = 2e8;                 // 出口容积压力-流量关系线性项系数，影响泵的线性特性，当前版本为定值，后续可扩展为动态变量
+        double K_q = 2e-5;                  // 流量-压升关系线性项系数，影响泵的线性特性，当前版本为定值，后续可扩展为动态变量
+        double K_slip = 2e-12;              // 滑移流量系数，影响泵在低流量时的压升特性，当前版本为定值，后续可扩展为动态变量
     } pump;
 
     // 轴系参数：等效惯量与阻尼，统一在机械方程中使用。
@@ -58,14 +58,41 @@ struct SimulationConfig {
         double J_pump = 0.0;
     } shaft;
 
+    // SVPWM+三相逆变器功率级参数（含DC母线）：
+    // - fixed_vdc_mode=true 时母线电压固定在 vdc_nominal（当前默认 540V）
+    // - false 时根据 Cdc 动态积分
+    struct Inverter {
+        bool fixed_vdc_mode = true; 
+        double vdc_nominal = 540.0; // 母线标称电压 V
+        double vdc_min = 100.0;     // 母线电压范围限制
+        double vdc_max = 800.0;     // 母线电压范围限制
+        double C_dc = 5e-3;         // 母线电容 F，影响母线电压动态响应
+        double G_frontend = 40.0;   // 前端供电导纳 S，影响母线电压调节能力
+        double i_frontend_max = 400.0;  // 前端最大电流 A
+    } inverter;
+
+    // SVPWM 控制器参数
+    struct SVPWM {
+        double linear_limit = 0.577350269; // 线性调制区系数（Vphase_max / Vdc）
+    } svpwm;
+
+    // 双向电池接口参数（预留）
+    // - i_batt > 0: 电池向母线放电
+    // - i_batt < 0: 母线给电池充电
+    struct BatteryInterface {
+        bool enabled = false;
+        double i_charge_max = 120.0;    // 电池最大充电电流 A
+        double i_discharge_max = 120.0; // 电池最大放电电流 A
+    } battery;
+
     // 外部输入：当前为开环常值输入，可扩展为时变输入源。
     struct Inputs {
-        double ua = 0.0;
-        double ub = 0.0;
-        double uc = 0.5;
-        double turb_p_in = 220000.0;
+        double ud = 0.0; // SVPWM 调制前 d 轴电压参考 V
+        double uq = 0.5; // SVPWM 调制前 q 轴电压参考 V
+        double turb_p_in = 100000.0;
         double turb_p_out = 100000.0;
         double turb_T_in = 600.0;
         double turb_m_dot = 0.2;
+        double i_batt_cmd = 0.0;
     } inputs;
 };

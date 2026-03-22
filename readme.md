@@ -19,12 +19,16 @@ make clean
 
 ## 代码结构（重构后）
 - 部件模型头文件：`include/components/`
+- 控制器头文件：`include/controllers/`
 - 求解器头文件：`include/solver/`
 - 部件模型实现：`model/components/`
+- 控制器实现：`model/controllers/`
 - 求解器实现：`model/solver/`
 - 主程序入口：`src/main.cpp`
 
 说明：
+- 控制器（SVPWM）负责 dq->abc 调制计算。
+- 逆变器功率级负责 DC 母线与功率流（前端供电/电池接口/电容动态）。
 - 各部件（电机/涡轮/泵/轴系）负责各自物理方程（`evaluate_*`）与状态回写（`apply_*`）。
 - 全系统耦合与积分在求解器层统一完成。
 - 参数初始化在 `src/main.cpp` 中统一设置，再通过 `apply_config` 下发到部件。
@@ -43,6 +47,29 @@ make clean
 - 定子铜耗：$P_{cu} = 1.5\,R_s\,(i_d^2 + i_q^2)$。
 - 气隙功率：$P_{ag} = T_{em}\,\omega_{shaft}$。
 
+## SVPWM 三相逆变器与 DC 母线模型
+- 参考电压输入改为 dq 坐标：$u_d^{*},u_q^{*}$。
+- 逆 Park + 逆 Clarke 变换得到三相参考：
+  $$u_\alpha^{*}=u_d^{*}\cos\theta_e-u_q^{*}\sin\theta_e,\quad u_\beta^{*}=u_d^{*}\sin\theta_e+u_q^{*}\cos\theta_e$$
+  $$u_a^{*}=u_\alpha^{*},\quad u_b^{*}=-\frac{1}{2}u_\alpha^{*}+\frac{\sqrt{3}}{2}u_\beta^{*},\quad u_c^{*}=-\frac{1}{2}u_\alpha^{*}-\frac{\sqrt{3}}{2}u_\beta^{*}$$
+- SVPWM 零序注入：
+  $$u_0=-\frac{\max(u_a^{*},u_b^{*},u_c^{*})+\min(u_a^{*},u_b^{*},u_c^{*})}{2}$$
+  $$\tilde u_a=u_a^{*}+u_0,\quad \tilde u_b=u_b^{*}+u_0,\quad \tilde u_c=u_c^{*}+u_0$$
+- 线性调制区限幅（当前实现）：
+  $$|\tilde u_{phase}|\le k_{lin}V_{dc},\quad k_{lin}=0.577350269$$
+- 占空比映射：
+  $$d_a=\mathrm{clip}\left(0.5+\frac{u_a}{V_{dc}},0,1\right),\ d_b=\mathrm{clip}\left(0.5+\frac{u_b}{V_{dc}},0,1\right),\ d_c=\mathrm{clip}\left(0.5+\frac{u_c}{V_{dc}},0,1\right)$$
+- 逆变器直流侧电流（功率等效）：
+  $$P_{ac}=u_a i_a+u_b i_b+u_c i_c,\quad i_{inv,dc}=\frac{P_{ac}}{\max(|V_{dc}|,1)}$$
+- 母线电容动态：
+  $$\dot V_{dc}=\frac{i_{source}-i_{inv,dc}}{C_{dc}}$$
+  其中 $i_{source}=i_{frontend}+i_{batt}$。
+- 前端供电（简化导纳模型）：
+  $$i_{frontend}=\mathrm{clip}(G_{frontend}(V_{dc,nom}-V_{dc}),-I_{frontend,max},I_{frontend,max})$$
+- 双向电池接口（预留）：
+  $$i_{batt}=\mathrm{clip}(i_{batt}^{cmd},-I_{chg,max},I_{dis,max})$$
+  约定 $i_{batt}>0$ 为电池向母线放电，$i_{batt}<0$ 为母线给电池充电。
+
 ## 机械侧（刚性同轴，当前实现）
 - 轴上总摩擦（线性阻尼）：$T_{fric} = \omega_{shaft}\,(b_{motor} + b_{turb} + b_{pump})$。
 - 角加速度：$\dot\omega = \dfrac{T_{em} + T_{turb} - T_{pump} - T_{fric}}{J_{motor} + J_{turb} + J_{pump}}$。
@@ -50,9 +77,11 @@ make clean
 - 电角度在电机模型中单独计算：$\theta_e = p\,\theta$（随后用于 Clarke/Park 变换）。
 
 ## 全系统求解器（统一 RK4）
-- 状态向量：$x=[i_d,i_q,\theta_{mech},\omega_{mech},p_{plenum},p_{discharge}]$。
+- 状态向量：$x=[i_d,i_q,\theta_{mech},\omega_{mech},p_{plenum},p_{discharge},V_{dc}]$。
 - 每个子步（$k_1\sim k_4$）都执行同样的部件耦合顺序：
-  - 电机：计算电磁转矩 $T_{em}$ 与电流导数。
+  - 逆变器：根据 $u_d^{*},u_q^{*},\theta_e$ 和 $V_{dc}$ 计算 SVPWM 后的 $u_a,u_b,u_c$。
+  - 电机：基于逆变器输出电压计算电磁转矩 $T_{em}$ 与电流导数。
+  - 逆变器 DC 侧：根据 $P_{ac}$ 估算 $i_{inv,dc}$ 并计算 $\dot V_{dc}$。
   - 涡轮：计算 $\dot p_{plenum}$ 与涡轮扭矩 $T_{turb}$。
   - 泵：计算 $\dot p_{discharge}$ 与负载扭矩 $T_{pump}$。
   - 轴系：用 $T_{em},T_{turb},T_{pump}$ 计算 $\dot\theta_{mech},\dot\omega_{mech}$。

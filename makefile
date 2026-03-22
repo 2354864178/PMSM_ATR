@@ -5,7 +5,10 @@ CXXFLAGS := -std=c++17 -O2 -Wall -Wextra -Iinclude
 LDFLAGS :=
 
 SRCS := src/main.cpp \
+		src/simulation_logger.cpp \
+		model/controllers/SVPWMController.cpp \
 		model/components/MotorModel.cpp \
+		model/components/InverterModel.cpp \
 		model/components/TurbineModel.cpp \
 		model/components/ShaftModel.cpp \
 		model/components/PumpModel.cpp \
