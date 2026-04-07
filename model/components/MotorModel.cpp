@@ -7,11 +7,6 @@ MotorModel::MotorModel(double Ts_in) : Ts(Ts_in) {}
 void MotorModel::set_Ts(double Ts_in) { Ts = Ts_in; }
 
 // 电机电气侧评估（纯计算，不修改对象状态）：
-// 1) 机械角/速 -> 电角/速
-// 2) abc 电压 -> alpha-beta -> dq
-// 3) 计算 did/diq
-// 4) dq 电流 -> alpha-beta -> abc（用于观测）
-// 5) 计算电磁转矩
 MotorModel::ElectricalEval MotorModel::evaluate_electrical(double id_in,
                                                            double iq_in,
                                                            double theta_mech,

@@ -29,7 +29,7 @@ public:
     };
 
     struct Command {
-        double i_batt_cmd = 0.0;
+        double i_batt_cmd = 0.0;    // 电池电流指令 A，正值表示放电，负值表示充电
     };
 
     InverterModel() = default;

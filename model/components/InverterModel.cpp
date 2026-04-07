@@ -1,37 +1,42 @@
 #include "components/inverter_model.h"
+#include "utils/numeric_utils.h"
 
 #include <algorithm>
 #include <cmath>
 
+// 构造函数：记录仿真步长（当前主要用于保持接口一致性）。
 InverterModel::InverterModel(double Ts_in) : Ts(Ts_in) {}
 
 void InverterModel::set_Ts(double Ts_in) { Ts = Ts_in; }
 
+// 逆变器交流侧评估（纯计算，不修改对象状态）：
 InverterModel::AcEval InverterModel::evaluate_ac_side(double v_dc_in,
                                                        const SVPWMController::Output& svpwm) const {
     AcEval out;
-    const double v_dc_safe = std::max(std::abs(v_dc_in), 1.0);
+    const double v_dc_safe = numeric_utils::abs_floor(v_dc_in, 1.0);
     out.duty_a = std::clamp(svpwm.gate_u_a, 0.0, 1.0);
     out.duty_b = std::clamp(svpwm.gate_u_b, 0.0, 1.0);
     out.duty_c = std::clamp(svpwm.gate_u_c, 0.0, 1.0);
 
-    // 平均模型：相电压由上桥臂占空比与母线电压线性映射
+    // 平均模型下的相电压
     out.ua = (out.duty_a - 0.5) * v_dc_safe;
     out.ub = (out.duty_b - 0.5) * v_dc_safe;
     out.uc = (out.duty_c - 0.5) * v_dc_safe;
     return out;
 }
 
+// 估算逆变器直流侧电流：由三相瞬时功率折算得到。
 double InverterModel::estimate_inverter_dc_current(const AcEval& ac,
                                                    double ia,
                                                    double ib,
                                                    double ic,
                                                    double v_dc_in) const {
     const double p_ac = ac.ua * ia + ac.ub * ib + ac.uc * ic;
-    const double v_safe = std::max(std::abs(v_dc_in), 1.0);
+    const double v_safe = numeric_utils::abs_floor(v_dc_in, 1.0);
     return p_ac / v_safe;
 }
 
+// 直流母线评估（纯计算，不修改对象状态）：
 InverterModel::DcEval InverterModel::evaluate_dc_bus(double v_dc_in,
                                                       double i_inv_dc_in,
                                                       const Command& cmd) const {
@@ -57,12 +62,13 @@ InverterModel::DcEval InverterModel::evaluate_dc_bus(double v_dc_in,
     if (fixed_vdc_mode) {
         out.dv_dc = 0.0;
     } else {
-        const double C_safe = std::max(C_dc, 1e-9);
+        const double C_safe = numeric_utils::clamp_floor(C_dc, 1e-9);
         out.dv_dc = (out.i_source - out.i_inv_dc) / C_safe;
     }
     return out;
 }
 
+// 将评估结果回写到对象成员，供日志与外部模块读取。
 void InverterModel::apply_state(double v_dc_in,
                                 const SVPWMController::Output& svpwm,
                                 const AcEval& ac,
@@ -90,6 +96,7 @@ void InverterModel::apply_state(double v_dc_in,
     p_inv = dc_eval.p_inv;
 }
 
+// 从统一配置结构体加载逆变器与电池接口参数。
 void InverterModel::apply_config(const SimulationConfig::Inverter& inv_cfg,
                                  const SimulationConfig::BatteryInterface& batt_cfg) {
     fixed_vdc_mode = inv_cfg.fixed_vdc_mode;

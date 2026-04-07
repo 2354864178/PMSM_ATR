@@ -12,6 +12,7 @@ SystemState rk4_utils::add_scaled(const SystemState& base, const SystemDeriv& de
     out.omega_mech += deriv.domega_mech * scale;
     // 流体压力状态
     out.p_plenum += deriv.dp_plenum * scale;
+    out.p_downstream_turb += deriv.dp_downstream_turb * scale;
     out.p_discharge += deriv.dp_discharge * scale;
     // 直流母线状态
     out.v_dc += deriv.dv_dc * scale;
@@ -31,6 +32,7 @@ SystemState rk4_utils::combine_rk4(const SystemState& base,
     out.theta_mech += (Ts / 6.0) * (k1.dtheta_mech + 2.0 * k2.dtheta_mech + 2.0 * k3.dtheta_mech + k4.dtheta_mech);
     out.omega_mech += (Ts / 6.0) * (k1.domega_mech + 2.0 * k2.domega_mech + 2.0 * k3.domega_mech + k4.domega_mech);
     out.p_plenum += (Ts / 6.0) * (k1.dp_plenum + 2.0 * k2.dp_plenum + 2.0 * k3.dp_plenum + k4.dp_plenum);
+    out.p_downstream_turb += (Ts / 6.0) * (k1.dp_downstream_turb + 2.0 * k2.dp_downstream_turb + 2.0 * k3.dp_downstream_turb + k4.dp_downstream_turb);
     out.p_discharge += (Ts / 6.0) * (k1.dp_discharge + 2.0 * k2.dp_discharge + 2.0 * k3.dp_discharge + k4.dp_discharge);
     out.v_dc += (Ts / 6.0) * (k1.dv_dc + 2.0 * k2.dv_dc + 2.0 * k3.dv_dc + k4.dv_dc);
     return out;

@@ -8,6 +8,11 @@
 // - 代数量：Q_pump、Q_out、dp_pump、T_pump
 class PumpModel {
 public:
+    struct Command {
+        double p_suction = 100000.0;
+        double p_downstream = 100000.0;
+    };
+
     // 单次液动评估输出。
     struct HydraulicEval {
         double dp_discharge = 0.0;
@@ -49,8 +54,10 @@ public:
     double Q_out = 0.0;             // 流向下游流量 m^3/s
     double dp_pump = 0.0;           // 泵压升 Pa
 
-    // 纯计算：输入候选状态与轴速，输出导数/流量/扭矩。
-    HydraulicEval evaluate_hydraulics(double p_discharge_in, double omega_shaft) const;
+    // 纯计算：输入候选状态、轴速与边界命令，输出导数/流量/扭矩。
+    HydraulicEval evaluate_hydraulics(double p_discharge_in,
+                                      double omega_shaft,
+                                      const Command& cmd) const;
     // 回写评估结果，供日志与外部读取。
     void apply_hydraulic_state(double omega_shaft, double p_discharge_in, const HydraulicEval& eval);
     // 参数下发。

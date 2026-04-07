@@ -6,6 +6,8 @@ LDFLAGS :=
 
 SRCS := src/main.cpp \
 		src/simulation_logger.cpp \
+		model/controllers/CurrentController.cpp \
+		model/controllers/SpeedController.cpp \
 		model/controllers/SVPWMController.cpp \
 		model/components/MotorModel.cpp \
 		model/components/InverterModel.cpp \
@@ -21,7 +23,7 @@ BIN := build/main
 
 all: $(BIN)
 
-run: $(BIN)
+run: clean $(BIN)
 	./$(BIN)
 
 $(BIN): $(OBJS)

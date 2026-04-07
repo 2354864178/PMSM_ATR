@@ -14,6 +14,7 @@ struct SystemState {
     double theta_mech = 0.0;
     double omega_mech = 0.0;
     double p_plenum = 150000.0;
+    double p_downstream_turb = 100000.0;
     double p_discharge = 100000.0;
     double v_dc = 540.0;
 };
@@ -35,6 +36,7 @@ struct SystemDeriv {
     double dtheta_mech = 0.0;   // 机械角位置的时间导数（即机械角速度）
     double domega_mech = 0.0;   // 机械角速度的时间导数（即机械角加速度）
     double dp_plenum = 0.0;     // 腔体压力的时间导数
+    double dp_downstream_turb = 0.0; // 涡轮后腔压力时间导数
     double dp_discharge = 0.0;  // 出口压力的时间导数
     double dv_dc = 0.0;         // 直流母线电压时间导数
 };
@@ -45,6 +47,14 @@ struct SystemDeriv {
 // - 负责把最终结果回写到各模型对象
 class SystemRK4Solver {
 public:
+    struct ComponentSwitches {
+        bool motor_enabled = true;
+        bool turbine_enabled = true;
+        bool pump_enabled = true;
+        bool inverter_enabled = true;
+        bool svpwm_enabled = true;
+    };
+
     SystemRK4Solver(MotorModel& motor_in,
                     TurbineModel& turb_in,
                     PumpModel& pump_in,
@@ -55,6 +65,10 @@ public:
 
     void sync_from_models();
     void set_inverter_command(const InverterModel::Command& cmd);
+    void set_turbine_command(const TurbineModel::Command& cmd);
+    void set_pump_command(const PumpModel::Command& cmd);
+    void set_component_switches(const ComponentSwitches& switches);
+    void set_fixed_speed_mode(bool enabled, double omega_mech_fixed);
     // 推进一步：输入当前 dq 电压参考（SVPWM 调制前）。
     void step(double ud_ref, double uq_ref);
 
@@ -80,12 +94,31 @@ private:
     EvalResult evaluate(const SystemState& state, double ud_ref, double uq_ref) const;
     // 先分别调用各组件 evaluate_*。
     ComponentEvals evaluate_components(const SystemState& state, double ud_ref, double uq_ref) const;
-    // 从组件结果提取状态导数。
-    void fill_derivatives(const ComponentEvals& evals, SystemDeriv& deriv) const;
-    // 从组件结果提取用于最终回写的代数量。
-    void fill_algebraic(const ComponentEvals& evals, SystemAlgebraic& alg) const;
+    SVPWMController::Output eval_svpwm_stage(const SystemState& state,
+                                             double ud_ref,
+                                             double uq_ref,
+                                             double theta_e) const;
+    InverterModel::AcEval eval_inverter_ac_stage(const SystemState& state,
+                                                 const SVPWMController::Output& svpwm_out) const;
+    MotorModel::ElectricalEval eval_motor_stage(const SystemState& state,
+                                                const InverterModel::AcEval& inv_ac,
+                                                double theta_e) const;
+    TurbineModel::GasEval eval_turbine_stage(const SystemState& state) const;
+    PumpModel::HydraulicEval eval_pump_stage(const SystemState& state) const;
+    InverterModel::DcEval eval_inverter_dc_stage(const SystemState& state,
+                                                 const InverterModel::AcEval& inv_ac,
+                                                 const MotorModel::ElectricalEval& motor_eval) const;
+    ShaftModel::MechanicalEval eval_shaft_stage(const SystemState& state,
+                                                const MotorModel::ElectricalEval& motor_eval,
+                                                const TurbineModel::GasEval& turb_eval,
+                                                const PumpModel::HydraulicEval& pump_eval) const;
+    SystemAlgebraic make_algebraic(const ComponentEvals& evals) const;
+    SystemDeriv make_derivative(const ComponentEvals& evals) const;
     // 将最终状态和代数量回写到各模型，便于日志与外部读取。
     void sync_to_models(const SystemAlgebraic& alg);
+    void apply_fixed_speed_constraint(SystemState& s) const;
+    void clamp_state_bounds(SystemState& s) const;
+    double electrical_theta(const SystemState& s) const;
 
     MotorModel& motor;
     TurbineModel& turb;
@@ -96,4 +129,9 @@ private:
     double Ts = 1e-4;
     SystemState state;
     InverterModel::Command inverter_cmd;
+    TurbineModel::Command turbine_cmd;
+    PumpModel::Command pump_cmd;
+    ComponentSwitches component_switches;
+    bool fixed_speed_mode = false;
+    double omega_mech_fixed = 0.0;
 };
